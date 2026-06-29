@@ -1,8 +1,5 @@
 import process from 'node:process'
-import dotenv from 'dotenv'
 import { cleanEnv, num, str } from 'envalid'
-
-dotenv.config()
 
 export const env = cleanEnv(process.env, {
   DATASOURCE_URL: str({}),
@@ -13,13 +10,17 @@ export const env = cleanEnv(process.env, {
 
   TWITCH_CLIENT_ID: str({ default: null }),
   TWITCH_CLIENT_SECRET: str({ default: null }),
-  TWITCH_CALLBACK_URL: str({ }),
+  TWITCH_CALLBACK_URL: str({}),
   TWITCH_ADMIN_ID: str({ default: null }),
   TWITCH_ADMIN_LOGIN: str({ default: null }),
 
   SPOTIFY_CLIENT_ID: str({ default: null }),
   SPOTIFY_CLIENT_SECRET: str({ default: null }),
   SPOTIFY_CALLBACK_URL: str({ default: null }),
+
+  KICK_CLIENT_ID: str({ default: null }),
+  KICK_CLIENT_SECRET: str({ default: null }),
+  KICK_CALLBACK_URL: str({ default: null }),
 
   WEATHER_API_KEY: str({ default: null }),
   WEATHER_LAT: str({ default: null }),
@@ -29,4 +30,13 @@ export const env = cleanEnv(process.env, {
   TMBD_API: str({ default: null }),
 
   TWIR_API: str({ default: null }),
+
+  PROXY: str({ default: null }),
+
+  S3_ENDPOINT: str({ default: 'http://rustfs:9000' }),
+  S3_ACCESS_KEY_ID: str({ default: 'rustfsadmin' }),
+  S3_SECRET_ACCESS_KEY: str({ default: 'rustfsadmin' }),
+  S3_BUCKET_IMAGES: str({ default: 'images' }),
+  S3_BUCKET_AVATARS: str({ default: 'avatars' }),
+  S3_BUCKET_BACKUPS: str({ default: 'backups' }),
 })

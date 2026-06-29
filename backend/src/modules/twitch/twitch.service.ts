@@ -1,5 +1,5 @@
-import { Injectable, OnModuleInit } from '@nestjs/common'
-import { env } from '../../utils/enviroments'
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { env } from '@/utils/enviroments'
 
 interface TwitchToken {
   access_token: string
@@ -10,8 +10,10 @@ interface TwitchToken {
 @Injectable()
 export class TwitchService implements OnModuleInit {
   private token: TwitchToken | null = null
+  private readonly logger = new Logger(TwitchService.name)
 
   async onModuleInit() {
+    this.logger.log('Initializing TwitchService and fetching app access token')
     await this.getAppAccessToken()
   }
 
@@ -19,7 +21,7 @@ export class TwitchService implements OnModuleInit {
     const response = await fetch('https://api.twitch.tv/helix/users', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         'Client-ID': env.TWITCH_CLIENT_ID,
       },
     })
@@ -37,7 +39,7 @@ export class TwitchService implements OnModuleInit {
     const response = await fetch(`https://api.twitch.tv/helix/users?id=${id}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         'Client-ID': env.TWITCH_CLIENT_ID,
       },
     })
@@ -55,7 +57,7 @@ export class TwitchService implements OnModuleInit {
     const response = await fetch(`https://api.twitch.tv/helix/users?login=${login}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         'Client-ID': env.TWITCH_CLIENT_ID,
       },
     })
@@ -116,7 +118,7 @@ export class TwitchService implements OnModuleInit {
 
       return this.token.access_token
     } catch (error) {
-      console.error('Error fetching Twitch app access token:', error)
+      this.logger.error('Error fetching Twitch app access token:', error as any)
       throw error
     }
   }
@@ -126,7 +128,7 @@ export class TwitchService implements OnModuleInit {
     const response = await fetch(`https://api.twitch.tv/helix/users?login=${login}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         'Client-ID': env.TWITCH_CLIENT_ID,
       },
     })

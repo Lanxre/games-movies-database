@@ -13,11 +13,11 @@ import {
   Monitor,
   Mouse,
   PcCase,
+  Smartphone,
+  Workflow,
   Webcam,
-} from 'lucide-vue-next'
-
-import Arch from '../components/archlinux.svg'
-import Atlas from '../components/atlasos.svg'
+} from '@lucide/vue'
+import Arch from '@/pages/pc/assets/archlinux.svg?component'
 
 interface PartLink {
   name: string
@@ -30,11 +30,6 @@ const OS: PartLink[] = [
     name: 'Arch Linux LTS',
     icon: Arch,
     url: 'https://archlinux.org/download/',
-  },
-  {
-    name: 'AtlasOS',
-    icon: Atlas,
-    url: 'https://atlasos.net/',
   },
 ]
 
@@ -111,26 +106,6 @@ const MONITORS: PartLink[] = [
 
 const DEVICES: PartLink[] = [
   {
-    name: 'Maono AU-A04',
-    icon: Mic,
-    url: 'https://www.maono.com/products/usb-microphone-kit-maono-au-a04?srsltid=AfmBOoqb4Mn_kFeH-rJ2l0D-nCFC4dAlo_VbD-MMGlZk9Sfn8_dtdwTk',
-  },
-  {
-    name: 'ATH-M20XBT',
-    icon: Headphones,
-    url: 'https://www.audio-technica.com/en-eu/ath-m20xbt',
-  },
-  {
-    name: 'Logitech HD Pro C920',
-    icon: Webcam,
-    url: 'https://www.logitech.com/en-eu/shop/p/c920-pro-hd-webcam.960-001055?srsltid=AfmBOop4R7_bqc-NzX0g9ELrl-pBx2NC_i3ac8JXoBDx_vDEF5zivr7P',
-  },
-  {
-    name: '8BitDo Ultimate 2.4G white',
-    icon: Gamepad2,
-    url: 'https://www.8bitdo.com/ultimate-2.4g-wireless-controller/',
-  },
-  {
     name: 'AKKO 5087S',
     icon: Keyboard,
     url: 'https://en.akkogear.com/product/black-gold-5087s-via-mechanical-keyboard/',
@@ -140,11 +115,51 @@ const DEVICES: PartLink[] = [
     icon: Mouse,
     url: 'https://www.atk.store/products/vxe-dragonfly-r1-series-wireless-mouse?srsltid=AfmBOorRZkuQASlQ1p0HyaZ5ZUMbc7EXXAjDdObek9YtTCqIDnLM3Wuy',
   },
+  {
+    name: 'ATH-M20XBT',
+    icon: Headphones,
+    url: 'https://www.audio-technica.com/en-eu/ath-m20xbt',
+  },
+  {
+    name: 'Maono AU-A04',
+    icon: Mic,
+    url: 'https://www.maono.com/products/usb-microphone-kit-maono-au-a04?srsltid=AfmBOoqb4Mn_kFeH-rJ2l0D-nCFC4dAlo_VbD-MMGlZk9Sfn8_dtdwTk',
+  },
+  {
+    name: 'Fifine BM88',
+    icon: Workflow,
+    url: 'https://fifinemicrophone.com/',
+  },
+  {
+    name: 'Logitech HD Pro C920',
+    icon: Webcam,
+    url: 'https://www.logitech.com/en-eu/shop/p/c920-pro-hd-webcam.960-001055?srsltid=AfmBOop4R7_bqc-NzX0g9ELrl-pBx2NC_i3ac8JXoBDx_vDEF5zivr7P',
+  },
+  {
+    name: 'Thundeal TD92 Pro',
+    icon: Monitor,
+    url: 'https://www.thundeal.com/',
+  },
+  {
+    name: 'Google Pixel 10a',
+    icon: Smartphone,
+    url: 'https://store.google.com/',
+  },
+  {
+    name: 'Nintendo Switch 2',
+    icon: Gamepad2,
+    url: 'https://www.nintendo.com/',
+  },
+  {
+    name: '8BitDo Ultimate 2.4G white',
+    icon: Gamepad2,
+    url: 'https://www.8bitdo.com/ultimate-2.4g-wireless-controller/',
+  },
 ]
 
 export const hardware: Record<string, PartLink[]> = {
   'Операционные системы': OS,
-  'Железки': SYSTEM_PARTS,
-  'Мониторы': MONITORS,
-  'Девайсы': DEVICES,
+  Железки: SYSTEM_PARTS,
+  Мониторы: MONITORS,
+  Девайсы: DEVICES,
 }

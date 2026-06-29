@@ -3,19 +3,66 @@ services:
     image: postgres:17
     restart: unless-stopped
     environment:
-      POSTGRES_USER: le_xot
-      POSTGRES_PASSWORD: abc
-      POSTGRES_DB: lists
-    ports:
-      - '5432:5432'
+      POSTGRES_USER: ${POSTGRES_USER:-le_xot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-lists}
     volumes:
       - pgdata:/var/lib/postgresql/data
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - rustfs_data:/data
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
+      RUSTFS_CONSOLE_ENABLE: 'true'
+    networks:
+      - default
+      - caddy
+    labels:
+      caddy: rustfs.le-xot.dev
+      caddy.reverse_proxy: '{{upstreams 9001}}'
+
   admin:
     image: adminer
     restart: unless-stopped
     depends_on:
       - postgres
-    ports:
-      - 54321:8080
+    networks:
+      - default
+      - caddy
+    labels:
+      caddy: adminer.le-xot.dev
+      caddy.reverse_proxy: '{{upstreams 8080}}'
+
+  application:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUN_LOCK_HASH: ${BUN_LOCK_HASH:-default}
+    image: lexot/games-movies-database:latest
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - rustfs
+    env_file: .env
+    environment:
+      DATASOURCE_URL: postgresql://${POSTGRES_USER:-le_xot}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lists}?schema=public
+    networks:
+      - default
+      - caddy
+    labels:
+      caddy: le-xot.dev
+      caddy.reverse_proxy: '{{upstreams 3000}}'
+
 volumes:
   pgdata:
+  rustfs_data:
+
+networks:
+  caddy:
+    external: true

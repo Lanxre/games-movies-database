@@ -1,16 +1,21 @@
-import { Injectable } from '@nestjs/common'
-import { SuggestionService } from '../suggestion/suggestion.service'
-import { UserService } from '../user/user.service'
-import { SuggestionCreateByTwirDTO } from './twir.dto'
+import { Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { SuggestionService } from '@/modules/suggestion/suggestion.service'
+import { SuggestionCreateByTwirDTO } from '@/modules/twir/twir.dto'
+import { UserService } from '@/modules/user/user.service'
 
 @Injectable()
 export class TwirService {
-  constructor(private readonly user: UserService, private readonly suggestion: SuggestionService) {}
+  private readonly logger = new Logger(TwirService.name)
+  constructor(
+    private readonly user: UserService,
+    private readonly suggestion: SuggestionService,
+  ) {}
 
   async createSuggestionWithTwir(data: SuggestionCreateByTwirDTO) {
-    let user = await this.user.getUserById(data.userId)
+    this.logger.log(`createSuggestionWithTwir userId=${data.userId} link=${data.link}`)
+    const user = await this.user.getUserById(data.userId)
     if (!user) {
-      user = await this.user.createUserById(data.userId)
+      throw new NotFoundException(`User with id ${data.userId} not found`)
     }
     return await this.suggestion.userSuggest({ link: data.link, userId: user.id })
   }

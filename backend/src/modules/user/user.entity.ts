@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/enums'
+import { UserRole as UserRoleName } from '@/enums/enums.names'
 
 export class UserEntity {
   @ApiProperty()
@@ -8,7 +9,7 @@ export class UserEntity {
   @ApiProperty()
   login: string
 
-  @ApiProperty()
+  @ApiProperty({ enum: UserRole, enumName: UserRoleName })
   role: UserRole
 
   @ApiProperty()
@@ -16,6 +17,9 @@ export class UserEntity {
 
   @ApiProperty()
   color: string
+
+  @ApiProperty()
+  hasCustomAvatar: boolean
 
   @ApiProperty()
   createdAt: Date

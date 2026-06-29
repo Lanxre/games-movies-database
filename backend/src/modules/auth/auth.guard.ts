@@ -1,17 +1,29 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { Request } from 'express'
-import { env } from 'src/utils/enviroments'
-import { UserService } from '../user/user.service'
+import { UserService } from '@/modules/user/user.service'
+import { env } from '@/utils/enviroments'
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private jwtService: JwtService, private userService: UserService) {}
+  private readonly logger = new Logger(AuthGuard.name)
+
+  constructor(
+    private jwtService: JwtService,
+    private userService: UserService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest()
     const token = this.extractToken(request)
     if (!token) {
+      this.logger.warn(`Unauthorized request: missing token ${request.method} ${request.url}`)
       throw new UnauthorizedException()
     }
     try {
@@ -20,6 +32,9 @@ export class AuthGuard implements CanActivate {
       })
       request.user = await this.userService.getUserById(payload.id)
     } catch {
+      this.logger.warn(
+        `Unauthorized request: token verification failed for ${request.method} ${request.url}`,
+      )
       throw new UnauthorizedException()
     }
     return true

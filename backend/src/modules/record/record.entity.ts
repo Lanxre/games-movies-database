@@ -1,6 +1,34 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { RecordGenre, RecordGrade, RecordStatus, RecordType } from '@prisma/client'
-import { UserEntity } from '../user/user.entity'
+import { RecordGenre, RecordGrade, RecordStatus, RecordType } from '@/enums'
+import {
+  RecordGenre as RecordGenreName,
+  RecordGrade as RecordGradeName,
+  RecordStatus as RecordStatusName,
+  RecordType as RecordTypeName,
+} from '@/enums/enums.names'
+import { LikeEntity } from '@/modules/like/like.entity'
+import { UserEntity } from '@/modules/user/user.entity'
+
+export class SuggestionOwnershipEntity {
+  @ApiProperty()
+  id: number
+
+  @ApiProperty()
+  recordId: number
+
+  @ApiProperty()
+  userId: string
+
+  @ApiProperty({ type: UserEntity, required: false, nullable: true })
+  user?: UserEntity | null
+
+  @ApiProperty()
+  createdAt: Date
+
+  constructor(partial: Partial<SuggestionOwnershipEntity>) {
+    Object.assign(this, partial)
+  }
+}
 
 export class RecordEntity {
   @ApiProperty()
@@ -15,26 +43,26 @@ export class RecordEntity {
   @ApiProperty()
   posterUrl: string
 
-  @ApiProperty()
+  @ApiProperty({ enum: RecordStatus, enumName: RecordStatusName })
   status: RecordStatus | null
 
-  @ApiProperty()
+  @ApiProperty({ enum: RecordType, enumName: RecordTypeName })
   type: RecordType | null
 
-  @ApiProperty()
+  @ApiProperty({ enum: RecordGenre, enumName: RecordGenreName })
   genre: RecordGenre | null
 
-  @ApiProperty()
+  @ApiProperty({ enum: RecordGrade, enumName: RecordGradeName })
   grade: RecordGrade | null
 
   @ApiProperty()
   episode: string | null
 
-  @ApiProperty()
-  userId: string | null
+  @ApiProperty({ type: SuggestionOwnershipEntity, required: false, nullable: true })
+  suggestionOwnership?: SuggestionOwnershipEntity | null
 
-  @ApiProperty({ type: UserEntity, required: false, nullable: true })
-  user?: UserEntity | null
+  @ApiProperty({ type: [LikeEntity], required: false, nullable: true })
+  likes?: LikeEntity[] | null
 
   @ApiProperty()
   createdAt: Date

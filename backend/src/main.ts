@@ -1,15 +1,17 @@
-import { ValidationPipe } from '@nestjs/common'
+import { Logger, ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { apiReference } from '@scalar/nestjs-api-reference'
 import cookieParser from 'cookie-parser'
-import { env } from 'src/utils/enviroments'
-import { AppModule } from './app.module'
-
-declare const module: any
+import { AppModule } from '@/app.module'
+import { env } from '@/utils/enviroments'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule)
+  const logger = new Logger('Bootstrap')
+  logger.log('🚀 Starting application bootstrap')
+  const app = await NestFactory.create(AppModule, {
+    logger: ['log', 'warn', 'error'],
+  })
   app.use(cookieParser())
   app.enableCors()
   const config = new DocumentBuilder().setTitle('games-movies-database').build()
@@ -23,10 +25,7 @@ async function bootstrap() {
   const updatedDocument = {
     ...document,
     paths: Object.fromEntries(
-      Object.entries(document.paths).map(([path, value]) => [
-        `${globalPrefix}${path}`,
-        value,
-      ]),
+      Object.entries(document.paths).map(([path, value]) => [`${globalPrefix}${path}`, value]),
     ),
   }
 
@@ -34,9 +33,7 @@ async function bootstrap() {
     app.use(
       '/reference',
       apiReference({
-        spec: {
-          content: updatedDocument,
-        },
+        content: updatedDocument,
       }),
     )
   }
@@ -54,13 +51,8 @@ async function bootstrap() {
       whitelist: true,
     }),
   )
-
   await app.listen(env.APP_PORT, '0.0.0.0')
-
-  if (module.hot) {
-    module.hot.accept()
-    module.hot.dispose(() => app.close())
-  }
+  logger.log(`✅ Application is listening on port ${env.APP_PORT}`)
 }
 
 bootstrap()

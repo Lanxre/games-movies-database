@@ -1,50 +1,37 @@
-import { Injectable } from '@nestjs/common'
-import { $Enums } from '@prisma/client'
-import { PrismaService } from 'src/database/prisma.service'
+import { Injectable, Logger } from '@nestjs/common'
+import { EventEmitter2 } from '@nestjs/event-emitter'
+import { AuctionRepository } from './repositories/auction.repository'
+import type {
+  UpdateAuctionPayload,
+  UpdateRecordsPayload,
+} from '@/modules/websocket/websocket.events'
 
 @Injectable()
 export class AuctionService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(AuctionService.name)
+  constructor(
+    private readonly auctionRepository: AuctionRepository,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
-  async getAuctions() {
-    const auctions = await this.prisma.record.findMany({
-      where: { type: $Enums.RecordType.AUCTION },
-      include: { user: true },
-    })
-    return auctions
+  getAuctions() {
+    this.logger.log('Fetching auctions')
+    return this.auctionRepository.findAuctions()
   }
 
   async getWinner(id: number) {
-    return await this.prisma.$transaction(async (tx) => {
-      const record = await tx.record.findUnique({
-        where: { id },
-        include: { user: true },
-      })
+    const winner = await this.auctionRepository.selectWinner(id)
 
-      if (!record) {
-        throw new Error(`Record with id ${id} not found`)
-      }
-
-      const winner = await tx.record.update({
-        where: { id },
-        data: { type: $Enums.RecordType.WRITTEN },
-        include: { user: true },
-      })
-
-      await tx.auctionsHistory.create({
-        data: {
-          winner: { connect: { id } },
-        },
-      })
-
-      await tx.record.deleteMany({
-        where: {
-          type: $Enums.RecordType.AUCTION,
-          id: { not: id },
-        },
-      })
-
-      return winner
-    })
+    this.eventEmitter.emit('update-auction', {
+      id,
+      action: 'ended',
+    } satisfies UpdateAuctionPayload)
+    this.eventEmitter.emit('update-records', {
+      genre: winner.genre,
+      id,
+      action: 'updated',
+    } satisfies UpdateRecordsPayload)
+    this.logger.log(`Auction winner chosen id=${id}`)
+    return winner
   }
 }

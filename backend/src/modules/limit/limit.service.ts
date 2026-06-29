@@ -1,15 +1,14 @@
-import { Injectable } from '@nestjs/common'
-import { PrismaService } from 'src/database/prisma.service'
-import { ChangeLimitDTO, LimitEntity } from './limit.dto'
+import { Injectable, Logger } from '@nestjs/common'
+import { ChangeLimitDTO, LimitEntity } from '@/modules/limit/limit.dto'
+import { LimitRepository } from './repositories/limit.repository'
 
 @Injectable()
 export class LimitService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(LimitService.name)
+  constructor(private readonly limitRepository: LimitRepository) {}
 
   changeLimit(limitData: ChangeLimitDTO): Promise<LimitEntity> {
-    return this.prisma.limit.update({
-      where: { name: limitData.name },
-      data: { quantity: limitData.quantity },
-    })
+    this.logger.log(`changeLimit name=${limitData.name} quantity=${limitData.quantity}`)
+    return this.limitRepository.update(limitData.name, limitData.quantity) as Promise<LimitEntity>
   }
 }

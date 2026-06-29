@@ -1,14 +1,14 @@
 import { fileURLToPath } from 'node:url'
+import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import autoprefixer from 'autoprefixer'
 import { generateApi } from 'swagger-typescript-api'
-import tailwind from 'tailwindcss'
 import { defineConfig } from 'vite'
 import svgLoader from 'vite-svg-loader'
 
 export default defineConfig(({ isPreview, mode }) => {
   if (mode !== 'production' && !isPreview) {
-    generateSwagger()
+    void generateSwagger()
   }
 
   return {
@@ -21,13 +21,14 @@ export default defineConfig(({ isPreview, mode }) => {
       preprocessorOptions: {
         scss: {
           api: 'modern-compiler',
-        },
+        } as any,
       },
       postcss: {
-        plugins: [tailwind(), autoprefixer()],
+        plugins: [autoprefixer()],
       },
     },
-    plugins: [vue(), svgLoader()],
+    plugins: [vue(), svgLoader(), tailwindcss()],
+    clearScreen: false,
     server: {
       host: true,
       proxy: {
@@ -51,9 +52,9 @@ async function generateSwagger() {
   while (tryCount < 10) {
     try {
       await generateApi({
-        name: 'api.ts',
+        fileName: 'api.ts',
         url: 'http://localhost:3000/docs-json',
-        output: fileURLToPath(new URL(`./src/lib`, import.meta.url)),
+        output: fileURLToPath(new URL('./src/lib', import.meta.url)),
         generateClient: true,
         httpClientType: 'fetch',
         singleHttpClient: true,

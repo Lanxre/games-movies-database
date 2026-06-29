@@ -11,14 +11,19 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import { ApiResponse, ApiTags } from '@nestjs/swagger'
-import { $Enums } from '@prisma/client'
-import { AuthGuard } from '../auth/auth.guard'
-import { RolesGuard } from '../auth/auth.roles.guard'
-import { User } from '../auth/auth.user.decorator'
-import { UserEntity } from '../user/user.entity'
-import { GetAllRecordsDTO, RecordCreateFromLinkDTO, RecordGetDTO, RecordUpdateDTO } from './record.dto'
-import { RecordEntity } from './record.entity'
-import { RecordService } from './record.service'
+import { Throttle } from '@nestjs/throttler'
+import { UserRole } from '@/enums'
+import { AuthGuard } from '@/modules/auth/auth.guard'
+import { RolesGuard } from '@/modules/auth/auth.roles.guard'
+import {
+  GetAllRecordsDTO,
+  RecordCreateFromLinkDTO,
+  RecordGetDTO,
+  RecordUpdateDTO,
+} from '@/modules/record/record.dto'
+import { RecordEntity } from '@/modules/record/record.entity'
+import { RecordService } from '@/modules/record/record.service'
+import { THROTTLER_LIMITS } from '@/utils/throttler'
 
 @ApiTags('records')
 @Controller('records')
@@ -26,24 +31,23 @@ export class RecordController {
   constructor(private recordServices: RecordService) {}
 
   @Post('link')
-  @UseGuards(AuthGuard, new RolesGuard([$Enums.UserRole.ADMIN]))
+  @Throttle({ default: THROTTLER_LIMITS.write })
+  @UseGuards(AuthGuard, new RolesGuard([UserRole.ADMIN]))
   @ApiResponse({ status: 201, type: RecordEntity })
-  createRecordFromLink(
-    @User() user: UserEntity,
-    @Body() data: RecordCreateFromLinkDTO,
-  ): Promise<RecordEntity> {
-    return this.recordServices.createRecordFromLink(user, data)
+  async createRecordFromLink(@Body() data: RecordCreateFromLinkDTO): Promise<RecordEntity> {
+    return await this.recordServices.createRecordFromLink(data)
   }
 
   @Post()
-  @UseGuards(AuthGuard, new RolesGuard([$Enums.UserRole.ADMIN]))
+  @Throttle({ default: THROTTLER_LIMITS.write })
+  @UseGuards(AuthGuard, new RolesGuard([UserRole.ADMIN]))
   @ApiResponse({ status: 201, type: RecordEntity })
-  createRecord(@Body() id: number, record: RecordUpdateDTO): Promise<RecordEntity> {
-    return this.recordServices.patchRecord(id, record)
+  async createRecord(@Body() id: number, record: RecordUpdateDTO): Promise<RecordEntity> {
+    return await this.recordServices.patchRecord(id, record)
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard, new RolesGuard([$Enums.UserRole.ADMIN]))
+  @UseGuards(AuthGuard, new RolesGuard([UserRole.ADMIN]))
   @ApiResponse({ status: 200, type: RecordEntity })
   @ApiResponse({ status: 404, description: 'Record not found' })
   async findRecordById(@Param('id') id: number): Promise<RecordEntity> {
@@ -55,17 +59,19 @@ export class RecordController {
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard, new RolesGuard([$Enums.UserRole.ADMIN]))
+  @Throttle({ default: THROTTLER_LIMITS.write })
+  @UseGuards(AuthGuard, new RolesGuard([UserRole.ADMIN]))
   @ApiResponse({ status: 200, type: RecordEntity })
-  patchRecord(
+  async patchRecord(
     @Param('id') id: number,
     @Body() record: RecordUpdateDTO,
   ): Promise<RecordEntity> {
-    return this.recordServices.patchRecord(id, record)
+    return await this.recordServices.patchRecord(id, record)
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard, new RolesGuard([$Enums.UserRole.ADMIN]))
+  @Throttle({ default: THROTTLER_LIMITS.write })
+  @UseGuards(AuthGuard, new RolesGuard([UserRole.ADMIN]))
   @ApiResponse({ status: 204 })
   async deleteRecord(@Param('id') id: number): Promise<void> {
     await this.recordServices.deleteRecord(id)

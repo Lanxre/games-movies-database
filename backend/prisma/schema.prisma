@@ -1,25 +1,28 @@
 datasource db {
   provider = "postgresql"
-  url      = env("DATASOURCE_URL")
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 // ----- User -----
 
 model User {
-  id              String   @id @unique
-  login           String   @unique
+  id              String   @id @unique @default(uuid())
+  login           String
   role            UserRole @default(USER)
   profileImageUrl String
   color           String   @default("#333333")
+  hasCustomAvatar Boolean  @default(false)
   createdAt       DateTime @default(now())
 
-  record Record[]
+  suggestionOwnerships SuggestionOwnership[]
+  likes                Like[]                @relation("UserLikes")
+  accounts UserAccount[]
 
-  @@index([id, login])
+  @@index([login])
   @@map("users")
 }
 
@@ -42,12 +45,13 @@ model Record {
   grade   RecordGrade?
   episode String?
 
-  user   User?   @relation(fields: [userId], references: [id])
-  userId String?
+  suggestionOwnership SuggestionOwnership?
 
-  createdAt DateTime @default(now())
+  likes           Like[]            @relation("RecordLikes")
 
   AuctionsHistory AuctionsHistory[]
+
+  createdAt DateTime @default(now())
 
   @@index([title])
   @@map("records")
@@ -84,6 +88,20 @@ enum RecordGrade {
   RECOMMEND
 }
 
+// ----- Like -----
+
+model Like {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], name: "UserLikes")
+  userId    String
+  record    Record   @relation(fields: [recordId], references: [id], name: "RecordLikes")
+  recordId  Int
+  createdAt DateTime @default(now())
+
+  @@unique([userId, recordId])
+  @@map("likes")
+}
+
 // ----- AuctionsHistory -----
 
 model AuctionsHistory {
@@ -117,6 +135,36 @@ model SuggestionRules {
   @@map("suggestion_rules")
 }
 
+// ----- SuggestionOwnership -----
+
+model SuggestionOwnership {
+  id        Int      @id @default(autoincrement())
+  record    Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  recordId  Int      @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@map("suggestion_ownerships")
+}
+
+// ----- UserAccount -----
+
+model UserAccount {
+  id             Int      @id @default(autoincrement())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  platform       Platform
+  platformUserId String
+  platformLogin  String
+  platformAvatar String?
+  createdAt      DateTime @default(now())
+
+  @@unique([platform, platformUserId])
+  @@unique([userId, platform])
+  @@map("user_accounts")
+}
+
 // ----- ThirdPartyOauthServiceToken -----
 
 model ThirdPartyOauthServiceToken {
@@ -132,4 +180,9 @@ model ThirdPartyOauthServiceToken {
 
 enum ThirdPartService {
   SPOTIFY
+}
+
+enum Platform {
+  TWITCH
+  KICK
 }

@@ -1,16 +1,21 @@
-import { router } from '@/lib/router/router'
 import { PiniaColada } from '@pinia/colada'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
-import App from './app.vue'
-import './assets/index.scss'
+import App from '@/app.vue'
+import { router } from '@/router/router'
+import '@/assets/index.css'
+import 'vue-sonner/style.css'
 
-const APP_VERSION = '2.1.0'
+const APP_VERSION = '3.3.0'
 const STORAGE_VERSION_KEY = 'app_version'
+
+const KEYS_TO_CLEAR = ['viewed-suggestions', 'suggestion-sort-by']
 
 const storedVersion = localStorage.getItem(STORAGE_VERSION_KEY)
 if (storedVersion !== APP_VERSION) {
-  localStorage.clear()
+  for (const key of KEYS_TO_CLEAR) {
+    localStorage.removeItem(key)
+  }
   localStorage.setItem(STORAGE_VERSION_KEY, APP_VERSION)
 }
 
@@ -20,24 +25,9 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-PiniaColada(app, {
+app.use(PiniaColada, {
   pinia,
-  refetchOnMount: true,
-  refetchOnWindowFocus: false,
+  queryOptions: { refetchOnMount: true, refetchOnWindowFocus: false },
 })
-
-// highlight re-renders
-// if (import.meta.env.DEV) {
-//   app.mixin({
-//     updated() {
-//       const el = this.$el
-//       if (el && el.style) {
-//         el.style.transition = 'box-shadow 0.3s ease'
-//         el.style.boxShadow = 'inset 0px 0px 0px 1px tomato'
-//         setTimeout(() => el.style.boxShadow = '', 300)
-//       }
-//     },
-//   })
-// }
 
 app.mount('#app')

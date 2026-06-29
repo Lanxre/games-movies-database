@@ -1,136 +1,211 @@
-import { Injectable } from '@nestjs/common'
+import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
-import { $Enums, User } from '@prisma/client'
-import { PrismaService } from '../../database/prisma.service'
-import { RecordEntity } from '../record/record.entity'
-import { TwitchService } from '../twitch/twitch.service'
+import { UserRole } from '@/enums'
+import { AvatarService } from '@/modules/avatar/avatar.service'
+import { UserDomain } from '@/modules/user/entities/user-domain.entity'
+import { LinkPlatformData, UserRepository } from '@/modules/user/repositories/user.repository'
+import { UpdateUsersPayload } from '@/modules/websocket/websocket.events'
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService, private twitch: TwitchService, private readonly eventEmitter: EventEmitter2) {}
+  private readonly logger = new Logger(UserService.name)
+
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly eventEmitter: EventEmitter2,
+    private readonly avatarService: AvatarService,
+  ) {}
 
   async upsertUser(
-    id: string,
+    platformId: string,
     data: {
-      login?: string
-      role?: $Enums.UserRole
-      profileImageUrl?: string
+      login: string
+      role?: UserRole
+      profileImageUrl: string
       color?: string
     },
-  ): Promise<User> {
-    const foundedUser = await this.prisma.user.findFirst({
-      where: { id },
-    })
+    platform: string,
+  ): Promise<UserDomain> {
+    const foundUser = await this.userRepository.findByPlatformId(platform, platformId)
 
-    if (!foundedUser && data.login && data.profileImageUrl && data.role && data.color) {
-      const createdUser = await this.prisma.user.create({
-        data: {
-          id,
-          login: data.login,
+    if (foundUser) {
+      if (!foundUser.hasCustomAvatar) {
+        const s3Key = await this.avatarService.fetchAndStoreOAuthAvatar(
+          foundUser.id,
+          data.profileImageUrl,
+        )
+        const profileImageUrl = s3Key ?? data.profileImageUrl
+        const updatedUser = await this.userRepository.update(foundUser.id, {
           role: data.role,
-          profileImageUrl: data.profileImageUrl,
+          profileImageUrl,
           color: data.color,
-        },
-      })
-      this.eventEmitter.emit('WebSocketUpdate')
-      return createdUser
-    }
+        })
+        this.eventEmitter.emit('update-users', {
+          userId: foundUser.id,
+          action: 'updated',
+        } satisfies UpdateUsersPayload)
+        return updatedUser
+      }
 
-    if (!foundedUser) {
-      return this.createUserByLogin(data.login)
-    }
-
-    const updatedUser = await this.prisma.user.update({
-      where: { id },
-      data: {
-        login: data.login,
+      const updatedUser = await this.userRepository.update(foundUser.id, {
         role: data.role,
-        profileImageUrl: data.profileImageUrl,
         color: data.color,
-      },
-    })
-    this.eventEmitter.emit('WebSocketUpdate')
-    return updatedUser
-  }
-
-  async getUserRecords(login: string): Promise<RecordEntity[]> {
-    return await this.prisma.record.findMany({
-      where: { user: { login } },
-      include: { user: true },
-    })
-  }
-
-  async createUserById(id: string): Promise<User> {
-    try {
-      const twitchUser = await this.twitch.getTwitchUserById(id)
-
-      if (!twitchUser) {
-        throw new Error(`User with id ${id} not found on Twitch`)
-      }
-
-      const createdUser = await this.prisma.user.create({
-        data: {
-          id: twitchUser.id,
-          login: twitchUser.login,
-          role: $Enums.UserRole.USER,
-          profileImageUrl: twitchUser.profile_image_url || 'https://static-cdn.jtvnw.net/user-default-pictures-uv/ead5c8b2-a4c9-4724-b1dd-9f00b46cbd3d-profile_image-300x300.png',
-          color: '#333333',
-        },
       })
-      this.eventEmitter.emit('WebSocketUpdate')
-      return createdUser
-    } catch (error) {
-      console.error('Error creating user by id:', error)
-      throw error
+      this.eventEmitter.emit('update-users', {
+        userId: foundUser.id,
+        action: 'updated',
+      } satisfies UpdateUsersPayload)
+      return updatedUser
     }
+
+    const s3Key = await this.avatarService.fetchAndStoreOAuthAvatar(
+      platformId,
+      data.profileImageUrl,
+    )
+    const profileImageUrl = s3Key ?? data.profileImageUrl
+
+    const createdUser = await this.userRepository.create({
+      login: data.login,
+      role: data.role ?? UserRole.USER,
+      profileImageUrl,
+      color: data.color ?? '#333333',
+      platform,
+      platformUserId: platformId,
+      platformLogin: data.login,
+      platformAvatar: data.profileImageUrl,
+    })
+    this.eventEmitter.emit('update-users', {
+      userId: createdUser.id,
+      action: 'created',
+    } satisfies UpdateUsersPayload)
+    return createdUser
   }
 
-  async createUserByLogin(login: string): Promise<User> {
-    try {
-      const twitchUsers = await this.twitch.searchTwitchUsers(login)
-
-      if (!twitchUsers || twitchUsers.length === 0) {
-        throw new Error(`User with login ${login} not found on Twitch`)
-      }
-
-      const twitchUser = twitchUsers[0]
-
-      const createdUser = await this.prisma.user.create({
-        data: {
-          id: twitchUser.id,
-          login: twitchUser.login,
-          role: $Enums.UserRole.USER,
-          profileImageUrl: twitchUser.profile_image_url || 'https://static-cdn.jtvnw.net/user-default-pictures-uv/ead5c8b2-a4c9-4724-b1dd-9f00b46cbd3d-profile_image-300x300.png',
-          color: '#333333',
-        },
-      })
-      this.eventEmitter.emit('WebSocketUpdate')
-      return createdUser
-    } catch (error) {
-      console.error('Error creating user by login:', error)
-      throw error
-    }
+  getUserByLogin(login: string): Promise<UserDomain | null> {
+    return this.userRepository.findByLogin(login)
   }
 
-  getUserByLogin(login: string): Promise<User> {
-    return this.prisma.user.findUnique({ where: { login } })
+  getUserById(id: string): Promise<UserDomain | null> {
+    return this.userRepository.findById(id)
   }
 
-  getUserById(id: string): Promise<User> {
-    return this.prisma.user.findUnique({ where: { id } })
+  getUserByPlatformId(platform: string, platformUserId: string): Promise<UserDomain | null> {
+    return this.userRepository.findByPlatformId(platform, platformUserId)
   }
 
-  getAllUsers(): Promise<User[]> {
-    return this.prisma.user.findMany()
+  getAllUsers(): Promise<UserDomain[]> {
+    return this.userRepository.findAll()
   }
 
   async deleteUserByLogin(login: string): Promise<void> {
-    await this.prisma.user.delete({ where: { login } })
-    this.eventEmitter.emit('WebSocketUpdate')
+    const user = await this.userRepository.findByLogin(login)
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+
+    await this.userRepository.deleteWithCascade(user.id)
+
+    this.eventEmitter.emit('update-users', {
+      userId: user.id,
+      action: 'deleted',
+    } satisfies UpdateUsersPayload)
   }
 
   async deleteUserById(id: string): Promise<void> {
-    await this.prisma.user.delete({ where: { id } })
-    this.eventEmitter.emit('WebSocketUpdate')
+    const user = await this.userRepository.findById(id)
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+
+    await this.userRepository.deleteWithCascade(id)
+
+    this.eventEmitter.emit('update-users', {
+      userId: id,
+      action: 'deleted',
+    } satisfies UpdateUsersPayload)
+  }
+
+  async updateLogin(userId: string, login: string): Promise<UserDomain> {
+    const user = await this.userRepository.update(userId, { login })
+    this.eventEmitter.emit('update-users', {
+      userId,
+      action: 'updated',
+    } satisfies UpdateUsersPayload)
+    return user
+  }
+
+  async linkPlatformAccount(userId: string, data: LinkPlatformData): Promise<void> {
+    this.logger.log(
+      `linkPlatformAccount: userId=${userId}, platform=${data.platform}, platformUserId=${data.platformUserId}`,
+    )
+    const existing = await this.userRepository.findByPlatformId(data.platform, data.platformUserId)
+    if (existing) {
+      this.logger.warn(
+        `linkPlatformAccount: platform ${data.platform}/${data.platformUserId} already linked to userId=${existing.id}`,
+      )
+      throw new Error('This platform account is already linked to another user')
+    }
+    await this.userRepository.linkPlatformAccount(userId, data)
+    this.logger.log(
+      `linkPlatformAccount: successfully linked ${data.platform}/${data.platformUserId} to userId=${userId}`,
+    )
+  }
+
+  async unlinkPlatformAccount(userId: string, platform: string): Promise<void> {
+    const accounts = await this.userRepository.findAccountsByUserId(userId)
+    if (accounts.length <= 1) {
+      throw new HttpException('Cannot unlink the last account', HttpStatus.BAD_REQUEST)
+    }
+
+    await this.userRepository.unlinkPlatformAccount(userId, platform)
+  }
+
+  getLinkedAccounts(userId: string) {
+    return this.userRepository.findAccountsByUserId(userId)
+  }
+
+  async uploadAvatar(userId: string, imageBuffer: Buffer): Promise<UserDomain> {
+    const user = await this.userRepository.findById(userId)
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+
+    const s3Key = await this.avatarService.processAndStoreAvatar(userId, imageBuffer)
+    const updatedUser = await this.userRepository.update(userId, {
+      profileImageUrl: s3Key,
+      hasCustomAvatar: true,
+    })
+
+    this.eventEmitter.emit('update-users', {
+      userId,
+      action: 'updated',
+    } satisfies UpdateUsersPayload)
+
+    return updatedUser
+  }
+
+  async deleteAvatar(userId: string): Promise<UserDomain> {
+    const user = await this.userRepository.findById(userId)
+    if (!user) {
+      throw new NotFoundException('User not found')
+    }
+
+    await this.avatarService.deleteAvatarFromS3(userId)
+
+    const accounts = await this.userRepository.findAccountsByUserId(userId)
+    const oauthAvatar =
+      accounts.find((a) => a.platformAvatar)?.platformAvatar ?? user.profileImageUrl
+
+    const updatedUser = await this.userRepository.update(userId, {
+      profileImageUrl: oauthAvatar,
+      hasCustomAvatar: false,
+    })
+
+    this.eventEmitter.emit('update-users', {
+      userId,
+      action: 'updated',
+    } satisfies UpdateUsersPayload)
+
+    return updatedUser
   }
 }
